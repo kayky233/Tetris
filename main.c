@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include <SDL_ttf.h>
 #include <time.h>
+#include <SDL_mixer.h>
 
 #define WIDTH 10
 #define HEIGHT 20
@@ -34,6 +35,9 @@ int blockX = WIDTH / 2 - 2;
 int blockY = 0;
 int score = 0;
 int speed = 2000;
+Mix_Chunk *dropSound = NULL;
+Mix_Chunk *lineClearSound = NULL;
+Mix_Music *bgMusic = NULL;
 
 int blocks[7][4][4] = {
         {{0, 0, 0, 0}, {1, 1, 1, 1}, {0, 0, 0, 0}, {0, 0, 0, 0}},  // I
@@ -55,6 +59,23 @@ void initGame() {
         printf("Error initializing SDL_ttf: %s\n", TTF_GetError());
         SDL_Quit();  // Don't forget to quit SDL before returning
     }
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        printf("SDL_mixer could not initialize! SDL_mixer Error: %s\n", Mix_GetError());
+    }
+    dropSound = Mix_LoadWAV("D:\\code_game\\russia\\Tetris\\Voicy_Tetris Beatbox.mp3");
+    if (dropSound == NULL) {
+        printf("Failed to load drop sound effect! SDL_mixer Error: %s\n", Mix_GetError());
+    }
+
+    lineClearSound = Mix_LoadWAV("D:\\code_game\\russia\\Tetris\\Voicy_Title- Tetris Sounds.mp3");
+    if (lineClearSound == NULL) {
+        printf("Failed to load line clear sound effect! SDL_mixer Error: %s\n", Mix_GetError());
+    }
+
+    bgMusic = Mix_LoadMUS("D:\\code_game\\russia\\Tetris\\original-tetris-theme-tetris-soundtrack.mp3");
+    if (bgMusic == NULL) {
+        printf("Failed to load background music! SDL_mixer Error: %s\n", Mix_GetError());
+    }
 
     window = SDL_CreateWindow("Tetris", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, 0);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
@@ -70,6 +91,7 @@ void initGame() {
             nextBlock[i][j] = blocks[randomIndex][i][j];
         }
     }
+    Mix_PlayMusic(bgMusic, -1);  // Play background music on loop
 }
 void handleMenuInput(SDL_Event e) {
     // 在这里添加代码来处理开始菜单的输入
@@ -212,6 +234,8 @@ void checkAndClearLines() {
 
         // If the line is complete, clear it and move down all above lines
         if(isLineComplete) {
+            // When a line is cleared
+            Mix_PlayChannel(-1, lineClearSound, 0);
             animateLineClear(y);
             for(int aboveY = y; aboveY > 0; aboveY--) {
                 for(int x = 0; x < WIDTH; x++) {
@@ -245,6 +269,7 @@ void updateGame() {
                     }
                 }
             }
+            Mix_PlayChannel(-1, dropSound, 0);
             // Check and clear lines
             checkAndClearLines();
             // Generate a new block
@@ -427,4 +452,8 @@ int main(int argc, char *argv[]) {
 
         SDL_Delay(16); // Limit frame rate
     }
+    Mix_FreeChunk(dropSound);
+    Mix_FreeChunk(lineClearSound);
+    Mix_FreeMusic(bgMusic);
+    Mix_Quit();
 }
