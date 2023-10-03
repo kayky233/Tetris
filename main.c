@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <SDL.h>
 #include <SDL_ttf.h>
+#include <time.h>
 
 #define WIDTH 10
 #define HEIGHT 20
@@ -10,6 +11,9 @@
 #define WINDOW_WIDTH ((WIDTH * BLOCK_SIZE) + INFO_PANEL_WIDTH)
 #define WINDOW_HEIGHT (HEIGHT * BLOCK_SIZE)
 
+void renderGame();
+void moveBlock(int dx, int dy);
+void rotateBlock();
 enum GameState {
     MENU,
     PLAYING,
@@ -180,6 +184,20 @@ void renderScore() {
     SDL_FreeSurface(surface);
     SDL_DestroyTexture(texture);
 }
+void animateLineClear(int lineY) {
+    int flashTimes = 5;
+    int flashInterval = 100; // ms
+
+    for (int i = 0; i < flashTimes; i++) {
+        renderGame(lineY);
+        SDL_RenderPresent(renderer);
+        SDL_Delay(flashInterval);
+
+        renderGame(-1);
+        SDL_RenderPresent(renderer);
+        SDL_Delay(flashInterval);
+    }
+}
 void checkAndClearLines() {
     for(int y = 0; y < HEIGHT; y++) {
         int isLineComplete = 1;  // Assume the line is complete
@@ -194,6 +212,7 @@ void checkAndClearLines() {
 
         // If the line is complete, clear it and move down all above lines
         if(isLineComplete) {
+            animateLineClear(y);
             for(int aboveY = y; aboveY > 0; aboveY--) {
                 for(int x = 0; x < WIDTH; x++) {
                     board[aboveY][x] = board[aboveY-1][x];
@@ -325,7 +344,7 @@ void renderPaused() {
     SDL_RenderPresent(renderer);
 }
 
-void renderGame() {
+void renderGame(int skipLine) {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
 
@@ -334,7 +353,12 @@ void renderGame() {
         for(int x = 0; x < WIDTH; x++) {
             if(board[y][x] == 1) {
                 SDL_Rect rect = {x * BLOCK_SIZE, y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE};
-                SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // Green
+                // Check if this line should be highlighted
+                if(y == skipLine) {
+                    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);  // White for highlight
+                } else {
+                    SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);  // Green otherwise
+                }
                 SDL_RenderFillRect(renderer, &rect);
             }
         }
@@ -394,7 +418,7 @@ int main(int argc, char *argv[]) {
             case MENU: renderMenu(); break;
             case PLAYING:
                 updateGame();
-                renderGame();
+                renderGame(-1);
                 break;
             case PAUSED:
                 renderPaused();
