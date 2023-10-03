@@ -10,6 +10,15 @@
 #define WINDOW_WIDTH ((WIDTH * BLOCK_SIZE) + INFO_PANEL_WIDTH)
 #define WINDOW_HEIGHT (HEIGHT * BLOCK_SIZE)
 
+enum GameState {
+    MENU,
+    PLAYING,
+    PAUSED,
+    GAME_OVER
+};
+
+// 全局变量来存储当前的游戏状态
+enum GameState gameState = MENU;
 SDL_Window* window = NULL;
 SDL_Renderer* renderer = NULL;
 TTF_Font* font = NULL;
@@ -58,7 +67,46 @@ void initGame() {
         }
     }
 }
+void handleMenuInput(SDL_Event e) {
+    // 在这里添加代码来处理开始菜单的输入
+    // 例如，如果玩家按下Enter键，改变游戏状态到PLAYING
+    if(e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RETURN) {
+        gameState = PLAYING;
+        // 可能还需要执行其他的初始化代码，例如重置游戏板
+    }
+}
 
+void handlePlayingInput(SDL_Event e) {
+    // 在这里添加代码来处理游戏中的输入
+    // 例如，移动和旋转方块，以及暂停游戏
+    if(e.type == SDL_KEYDOWN) {
+        switch(e.key.keysym.sym) {
+            case SDLK_LEFT: moveBlock(-1, 0); break;
+            case SDLK_RIGHT: moveBlock(1, 0); break;
+            case SDLK_DOWN: moveBlock(0, 1); break;
+            case SDLK_UP: rotateBlock(); break;
+            case SDLK_LCTRL: // 如果按下左Ctrl键
+            case SDLK_RCTRL: // 或者按下右Ctrl键
+                gameState = PAUSED; // 切换到PAUSED状态
+                break;
+        }
+    }
+}
+
+void handlePausedInput(SDL_Event e) {
+    // 处理在游戏暂停时的输入
+    if(e.type == SDL_KEYDOWN) {
+        switch(e.key.keysym.sym) {
+            case SDLK_LCTRL: // 如果按下左Ctrl键
+            case SDLK_RCTRL: // 或者按下右Ctrl键
+                gameState = PLAYING; // 切换回PLAYING状态
+                break;
+            case SDLK_ESCAPE: // 如果按下Escape键
+                gameState = MENU; // 切换回MENU状态
+                break;
+        }
+    }
+}
 
 int isValidPosition(int newX, int newY) {
     for(int i = 0; i < 4; i++) {
@@ -212,6 +260,71 @@ void renderNextBlock() {
         }
     }
 }
+void renderMenu() {
+    // 清除屏幕
+    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255); // 设置为白色
+    SDL_RenderClear(renderer);
+
+    // 设置字体颜色为黑色
+    SDL_Color textColor = {0, 0, 0, 255};
+
+    // 加载字体
+    TTF_Font* font = TTF_OpenFont("C:\\Users\\kay\\CLionProjects\\ccode\\Roboto-Black.ttf", 28); // 请替换为您的字体文件的路径和所需的字体大小
+    if (font == NULL) {
+        printf("Failed to load font: %s\n", TTF_GetError());
+        return;
+    }
+
+    // 创建一个表面来渲染文本
+    SDL_Surface* textSurface = TTF_RenderText_Solid(font, "Press Enter to Start", textColor);
+    if (textSurface == NULL) {
+        printf("Failed to render text: %s\n", TTF_GetError());
+        TTF_CloseFont(font);
+        return;
+    }
+
+    // 创建一个纹理从表面
+    SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (textTexture == NULL) {
+        printf("Failed to create texture: %s\n", SDL_GetError());
+        SDL_FreeSurface(textSurface);
+        TTF_CloseFont(font);
+        return;
+    }
+
+    // 设置渲染文本的位置
+    SDL_Rect textRect;
+    textRect.x = (WINDOW_WIDTH - textSurface->w) / 2; // 水平居中
+    textRect.y = (WINDOW_HEIGHT - textSurface->h) / 2; // 垂直居中
+    textRect.w = textSurface->w;
+    textRect.h = textSurface->h;
+
+    // 渲染文本
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+
+    // 清理
+    SDL_DestroyTexture(textTexture);
+    SDL_FreeSurface(textSurface);
+    TTF_CloseFont(font);
+
+    // 更新屏幕
+    SDL_RenderPresent(renderer);
+}
+void renderPaused() {
+    // 渲染一个表示游戏已暂停的文本消息
+    SDL_Color color = {255, 0, 0}; // 红色
+    SDL_Surface* surface = TTF_RenderText_Solid(font, "Game Paused", color);
+    SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_Rect dstrect = {WINDOW_WIDTH / 2 - surface->w / 2, WINDOW_HEIGHT / 2 - surface->h / 2, surface->w, surface->h};
+    SDL_RenderCopy(renderer, texture, NULL, &dstrect);
+
+    // 释放资源
+    SDL_FreeSurface(surface);
+    SDL_DestroyTexture(texture);
+
+    SDL_RenderPresent(renderer);
+}
+
 void renderGame() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
@@ -268,19 +381,26 @@ int main(int argc, char *argv[]) {
                 TTF_Quit();
                 SDL_Quit();
                 return 0;
-            } else if(e.type == SDL_KEYDOWN) {
-                switch(e.key.keysym.sym) {
-                    case SDLK_LEFT: moveBlock(-1, 0); break;
-                    case SDLK_RIGHT: moveBlock(1, 0); break;
-                    case SDLK_DOWN: moveBlock(0, 1); break;
-                    case SDLK_UP: rotateBlock(); break;
-                        // TODO: Add more controls (e.g., drop, etc.)
+            } else {
+                switch(gameState) {
+                    case MENU: handleMenuInput(e); break;
+                    case PLAYING: handlePlayingInput(e); break;
+                    case PAUSED: handlePausedInput(e); break;
                 }
             }
         }
 
-        updateGame();
-        renderGame();
+        switch(gameState) {
+            case MENU: renderMenu(); break;
+            case PLAYING:
+                updateGame();
+                renderGame();
+                break;
+            case PAUSED:
+                renderPaused();
+                break;
+        }
+
         SDL_Delay(16); // Limit frame rate
     }
 }
