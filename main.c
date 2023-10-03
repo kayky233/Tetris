@@ -49,7 +49,16 @@ void initGame() {
     if(!font) {
         printf("Error loading font: %s\n", SDL_GetError());
     }
+
+    // Initialize the first nextBlock
+    int randomIndex = rand() % 7;
+    for(int i = 0; i < 4; i++) {
+        for(int j = 0; j < 4; j++) {
+            nextBlock[i][j] = blocks[randomIndex][i][j];
+        }
+    }
 }
+
 
 int isValidPosition(int newX, int newY) {
     for(int i = 0; i < 4; i++) {
@@ -67,15 +76,24 @@ int isValidPosition(int newX, int newY) {
 }
 
 void generateBlock() {
-    int randomIndex = rand() % 7;
+    // Make the nextBlock the current block
     for(int i = 0; i < 4; i++) {
         for(int j = 0; j < 4; j++) {
-            block[i][j] = blocks[randomIndex][i][j];
+            block[i][j] = nextBlock[i][j];
         }
     }
     blockX = WIDTH / 2 - 2;
     blockY = 0;
+
+    // Generate a new nextBlock
+    int randomIndex = rand() % 7;
+    for(int i = 0; i < 4; i++) {
+        for(int j = 0; j < 4; j++) {
+            nextBlock[i][j] = blocks[randomIndex][i][j];
+        }
+    }
 }
+
 
 void moveBlock(int dx, int dy) {
     if(isValidPosition(blockX + dx, blockY + dy)) {
@@ -179,7 +197,21 @@ void updateGame() {
         counter = 0;
     }
 }
+void renderNextBlock() {
+    int previewX = WINDOW_WIDTH - INFO_PANEL_WIDTH + 50; // Adjust as per your design
+    int previewY = 50; // Adjust as per your design
 
+    // Render the next block
+    for(int y = 0; y < 4; y++) {
+        for(int x = 0; x < 4; x++) {
+            if(nextBlock[y][x] == 1) {
+                SDL_Rect rect = {previewX + x * BLOCK_SIZE, previewY + y * BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE};
+                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);  // Blue
+                SDL_RenderFillRect(renderer, &rect);
+            }
+        }
+    }
+}
 void renderGame() {
     SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
     SDL_RenderClear(renderer);
@@ -214,7 +246,7 @@ void renderGame() {
     for(int y = 0; y <= HEIGHT; y++) {
         SDL_RenderDrawLine(renderer, 0, y * BLOCK_SIZE, WINDOW_WIDTH - INFO_PANEL_WIDTH, y * BLOCK_SIZE);
     }
-
+    renderNextBlock();
     renderScore();
 
     SDL_RenderPresent(renderer);
